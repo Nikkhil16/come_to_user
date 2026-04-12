@@ -1,0 +1,409 @@
+{
+  "schema_version": 3,
+  "package_name": "come_to_user",
+  "repo_url": "https://github.com/Nikkhil16/come_to_user",
+  "overlay_setup": "install/setup.bash",
+  "rosdep_install": true,
+  "python_requirements": [
+    "requirements.txt"
+  ],
+  "discovery": {
+    "summary": "ROS 2 robot skill that follows a visible user with YOLO person tracking and stops when the arm camera detects a nearby edge.",
+    "language_representation": "Use this package when the user wants the robot to come to them, follow the closest visible person, align to the person in the camera frame, drive forward at a low speed, publish web-viewable debug camera streams, and stop if the arm-mounted camera sees a table edge or boundary in the forward corridor.",
+    "keywords": [
+      "come to user",
+      "person following",
+      "follow me",
+      "YOLO",
+      "edge stop",
+      "cmd_vel",
+      "web video"
+    ],
+    "capabilities": [
+      "Detect people in the main camera with an Ultralytics YOLO model",
+      "Choose the largest visible person as the target",
+      "Rotate to center the target and drive forward at a low configurable speed",
+      "Use the arm camera to latch a stop when an edge enters the forward corridor",
+      "Publish YOLO, arm-edge, and combined debug views through web_video_server"
+    ],
+    "platform_requirements": {
+      "os": [
+        "linux"
+      ],
+      "platform_tags": [
+        "ubuntu-22.04",
+        "ubuntu-24.04"
+      ],
+      "architectures": [
+        "x86_64",
+        "arm64"
+      ],
+      "ros_distros": [
+        "humble",
+        "jazzy"
+      ]
+    },
+    "system_requirements": {
+      "commands": [
+        "git",
+        "python3",
+        "colcon",
+        "rosdep",
+        "ros2"
+      ],
+      "hardware": [],
+      "requires_gpu": false,
+      "notes": [
+        "Requires the Python packages cv2, numpy, cv_bridge, rclpy, and ultralytics in the runtime environment.",
+        "Requires the ROS package web_video_server.",
+        "Requires the maurice_msgs/srv/GotoJS interface package to be available in the ROS environment for the arm start-pose service.",
+        "GPU acceleration is optional; the script can run on CPU if the selected YOLO model is small enough."
+      ]
+    },
+    "robot_requirements": {
+      "robot_types": [],
+      "capabilities": [],
+      "sensors": [],
+      "actuators": [],
+      "frames": [],
+      "notes": [
+        "Designed for the robot topic layout using /mars/main_camera/remote/left/image_raw, /mars/arm/image_raw, and /mars/arm/goto_js by default.",
+        "Requires a mobile base listening on the configured cmd_vel topic."
+      ]
+    },
+    "hard_requirements": {
+      "resource_requirements": {
+        "requires_gpu": false,
+        "accelerators": [],
+        "min_memory_mb": 0,
+        "min_disk_free_mb": 1024
+      },
+      "runtime_requirements": {
+        "required_env": [],
+        "requires_sudo": false,
+        "requires_realtime_kernel": false,
+        "required_ros_nodes": [],
+        "required_topics": [],
+        "required_services": [],
+        "required_actions": []
+      },
+      "network_requirements": {
+        "requires_internet": false,
+        "outbound_hosts": []
+      },
+      "safety_requirements": {
+        "requires_physical_robot": true,
+        "allowed_robot_modes": [
+          "physical"
+        ],
+        "motion_risk": "commands mobile-base motion toward a person and must be supervised",
+        "requires_estop": true,
+        "human_supervision": "required"
+      },
+      "data_requirements": {
+        "requires_credentials": [],
+        "requires_datasets": []
+      }
+    }
+  },
+  "build": {
+    "working_directory": "workspace_root",
+    "cwd": ".",
+    "command": [
+      "colcon",
+      "build",
+      "--packages-select",
+      "come_to_user"
+    ]
+  },
+  "processes": {
+    "come_to_user_controller": {
+      "working_directory": "workspace_root",
+      "cwd": ".",
+      "command": [
+        "ros2",
+        "run",
+        "come_to_user",
+        "come_to_user_script.py",
+        "--preferred",
+        "${main_image_topic}",
+        "--arm-image-topic",
+        "${arm_image_topic}",
+        "--cmd-vel-topic",
+        "${cmd_vel_topic}",
+        "--model",
+        "${model}",
+        "--port",
+        "${web_port}",
+        "--address",
+        "${web_address}",
+        "--arm-start-service",
+        "${arm_start_service}",
+        "--arm-start-service-type",
+        "${arm_start_service_type}",
+        "--arm-start-duration-ms",
+        "${arm_start_duration_ms}",
+        "--arm-start-timeout",
+        "${arm_start_timeout}"
+      ],
+      "startup_delay_sec": 30.0
+    }
+  },
+  "targets": {
+    "come_to_user": {
+      "summary": "Start the robot person-following behavior that comes toward a visible user and stops on arm-camera edge detection.",
+      "description": "Launch the come_to_user controller as a supervised long-running process.",
+      "language_representation": "Use this target when the user asks the robot to come to them, follow them, approach a visible person, or demonstrate a person-following behavior with edge-stop safety. It first moves the arm to the configured start pose, then starts the long-running controller that detects people, centers the largest person, drives toward them slowly, publishes debug video topics, and latches stop on arm-camera edge detection.",
+      "keywords": [
+        "come to me",
+        "come to user",
+        "follow person",
+        "follow me",
+        "person tracker",
+        "mobile base",
+        "edge detection",
+        "safety stop"
+      ],
+      "examples": [
+        "Make the robot come to the user.",
+        "Start the person-following behavior.",
+        "Have the robot follow me and stop before the table edge.",
+        "Run the YOLO follow-me skill with the arm camera safety stop."
+      ],
+      "action_servers": [
+        {
+          "name": "come_to_user_controller",
+          "interface": "long_running_process",
+          "goal_fields": [],
+          "result_fields": [],
+          "feedback_fields": [],
+          "publishes": [
+            "/people_annotated/image_raw",
+            "/arm_edge_debug/image_raw",
+            "/combined_debug/image_raw",
+            "/cmd_vel"
+          ],
+          "subscribes": [
+            "/mars/main_camera/remote/left/image_raw",
+            "/mars/arm/image_raw"
+          ],
+          "services": [
+            "/mars/arm/goto_js"
+          ],
+          "required_tf_frames": [],
+          "side_effects": [
+            "Publishes Twist messages on the configured cmd_vel topic.",
+            "Launches web_video_server for browser-based debug viewing.",
+          "Keeps moving behavior active until the process is stopped or the edge stop latches.",
+          "Calls the configured arm start-pose service before enabling person following."
+          ],
+          "language_representation": "This is a long-running ROS process rather than a ROS action server. It calls the arm start-pose service, subscribes to the main and arm camera image topics, publishes debug image topics, commands the mobile base through cmd_vel, and launches web_video_server."
+        }
+      ],
+      "platform_requirements": {
+        "os": [
+          "linux"
+        ],
+        "ros_distros": [
+          "humble",
+          "jazzy"
+        ]
+      },
+      "system_requirements": {
+        "commands": [
+          "ros2",
+          "python3",
+          "rosdep"
+        ],
+        "hardware": [],
+        "requires_gpu": false,
+        "notes": [
+          "Ultralytics must be installed in the Python environment used by ros2 run.",
+          "maurice_msgs/srv/GotoJS must be available in the ROS environment used by ros2 run."
+        ]
+      },
+      "robot_requirements": {
+        "robot_types": [],
+        "capabilities": [],
+        "sensors": [],
+        "actuators": [],
+        "frames": [],
+        "notes": [
+          "Requires live main-camera and arm-camera image topics matching the configured topic names.",
+          "Requires the configured arm start-pose service.",
+          "Requires a mobile base listening on the configured cmd_vel topic."
+        ]
+      },
+      "hard_requirements": {
+        "resource_requirements": {
+          "requires_gpu": false,
+          "accelerators": [],
+          "min_memory_mb": 0,
+          "min_disk_free_mb": 1024
+        },
+        "runtime_requirements": {
+          "required_env": [],
+          "requires_sudo": false,
+          "requires_realtime_kernel": false,
+          "required_ros_nodes": [],
+          "required_topics": [],
+          "required_services": [],
+          "required_actions": []
+        },
+        "network_requirements": {
+          "requires_internet": false,
+          "outbound_hosts": []
+        },
+        "safety_requirements": {
+          "requires_physical_robot": true,
+          "allowed_robot_modes": [
+            "physical"
+          ],
+          "motion_risk": "commands mobile-base motion toward a person and must be supervised",
+          "requires_estop": true,
+          "human_supervision": "required"
+        },
+        "data_requirements": {
+          "requires_credentials": [],
+          "requires_datasets": []
+        }
+      },
+      "input_requirements": [
+        {
+          "name": "main_image_topic",
+          "type": "string",
+          "required": false,
+          "default": "/mars/main_camera/remote/left/image_raw",
+          "semantic_role": "main_camera_topic",
+          "constraints": {
+            "format": "ros_topic_name"
+          },
+          "description": "Preferred main raw image topic used for YOLO person tracking.",
+          "example": "/mars/main_camera/remote/left/image_raw"
+        },
+        {
+          "name": "arm_image_topic",
+          "type": "string",
+          "required": false,
+          "default": "/mars/arm/image_raw",
+          "semantic_role": "arm_camera_topic",
+          "constraints": {
+            "format": "ros_topic_name"
+          },
+          "description": "Arm camera raw image topic used for edge detection.",
+          "example": "/mars/arm/image_raw"
+        },
+        {
+          "name": "cmd_vel_topic",
+          "type": "string",
+          "required": false,
+          "default": "/cmd_vel",
+          "semantic_role": "velocity_command_topic",
+          "constraints": {
+            "format": "ros_topic_name"
+          },
+          "description": "Twist command topic for the mobile base.",
+          "example": "/cmd_vel"
+        },
+        {
+          "name": "model",
+          "type": "string",
+          "required": false,
+          "default": "yolo26n.pt",
+          "semantic_role": "yolo_model",
+          "constraints": {
+            "format": "path_or_model_name"
+          },
+          "description": "Ultralytics YOLO model path or model name.",
+          "example": "yolo26n.pt"
+        },
+        {
+          "name": "web_port",
+          "type": "int",
+          "required": false,
+          "default": 8080,
+          "semantic_role": "debug_web_port",
+          "constraints": {
+            "min": 1,
+            "max": 65535
+          },
+          "description": "HTTP port for web_video_server.",
+          "example": "8080"
+        },
+        {
+          "name": "web_address",
+          "type": "string",
+          "required": false,
+          "default": "0.0.0.0",
+          "semantic_role": "debug_web_bind_address",
+          "constraints": {
+            "format": "ip_address"
+          },
+          "description": "Bind address for web_video_server.",
+          "example": "0.0.0.0"
+        },
+        {
+          "name": "arm_start_service",
+          "type": "string",
+          "required": false,
+          "default": "/mars/arm/goto_js",
+          "semantic_role": "arm_start_service",
+          "constraints": {
+            "format": "ros_service_name"
+          },
+          "description": "Service used to move the robot arm to the start pose before following.",
+          "example": "/mars/arm/goto_js"
+        },
+        {
+          "name": "arm_start_service_type",
+          "type": "string",
+          "required": false,
+          "default": "maurice_msgs/srv/GotoJS",
+          "semantic_role": "arm_start_service_type",
+          "constraints": {
+            "format": "ros_service_type"
+          },
+          "description": "ROS service type used by the arm start-pose service.",
+          "example": "maurice_msgs/srv/GotoJS"
+        },
+        {
+          "name": "arm_start_duration_ms",
+          "type": "int",
+          "required": false,
+          "default": 3,
+          "semantic_role": "arm_start_duration",
+          "constraints": {
+            "min": 0
+          },
+          "description": "Duration value sent to the arm start-pose service request.",
+          "example": "3"
+        },
+        {
+          "name": "arm_start_timeout",
+          "type": "float",
+          "required": false,
+          "default": 20.0,
+          "semantic_role": "arm_start_timeout",
+          "constraints": {
+            "min": 0
+          },
+          "description": "Seconds to wait for the arm start-pose service call before failing.",
+          "example": "20.0"
+        }
+      ],
+      "start": [
+        "come_to_user_controller"
+      ],
+      "client": {
+        "working_directory": "workspace_root",
+        "cwd": ".",
+        "command": [
+          "python3",
+          "-c",
+          "print('come_to_user controller was started by skill_acq. Keep --leave-processes-running enabled for this long-running robot behavior.')"
+        ],
+        "arguments": []
+      }
+    }
+  }
+}
