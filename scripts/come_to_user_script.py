@@ -1241,7 +1241,7 @@ def main() -> None:
     parser.add_argument(
         "--edge-consecutive-frames",
         type=int,
-        default=20,
+        default=30,
         help="Number of consecutive edge detections required to latch stop; 20 frames is about 2 seconds at 10 FPS.",
     )
     parser.add_argument(
