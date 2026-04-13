@@ -335,6 +335,10 @@ class PersonFollowerWebServer(Node):
 
     def enable_motion(self) -> None:
         self.motion_enabled = True
+        with self.state_lock:
+            self.motion_enabled = True
+            self.edge_hits_in_row = 0
+            self.edge_latched = False
         self.get_logger().info("Motion enabled.")
 
     def disable_motion(self) -> None:
@@ -619,22 +623,26 @@ class PersonFollowerWebServer(Node):
                 self.arm_frame_received = True
                 self.last_arm_frame_time = now
                 self.edge_detected_current = detected
+                edge_stop_armed = self.motion_enabled
 
                 if detected:
+                if detected and edge_stop_armed:
                     self.edge_hits_in_row += 1
                 else:
                     self.edge_hits_in_row = 0
 
                 if self.edge_hits_in_row >= self.edge_consecutive_frames:
+                if edge_stop_armed and self.edge_hits_in_row >= self.edge_consecutive_frames:
                     self.edge_latched = True
 
                 self.latest_edge_debug_bgr = debug_bgr.copy()
                 edge_latched = self.edge_latched
+                edge_hits_in_row = self.edge_hits_in_row
 
             if edge_latched:
                 self.publish_stop()
 
-            if detected and self.edge_hits_in_row == self.edge_consecutive_frames:
+            if detected and edge_hits_in_row == self.edge_consecutive_frames:
                 self.get_logger().warn(
                     "Edge latched. "
                     f"support={stats['support_fraction']:.2f} "
