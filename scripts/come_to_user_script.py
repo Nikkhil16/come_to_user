@@ -334,7 +334,6 @@ class PersonFollowerWebServer(Node):
         self.get_logger().info(f"Subscribed to main image topic: {image_topic}")
 
     def enable_motion(self) -> None:
-        self.motion_enabled = True
         with self.state_lock:
             self.motion_enabled = True
             self.edge_hits_in_row = 0
@@ -625,13 +624,11 @@ class PersonFollowerWebServer(Node):
                 self.edge_detected_current = detected
                 edge_stop_armed = self.motion_enabled
 
-                if detected:
                 if detected and edge_stop_armed:
                     self.edge_hits_in_row += 1
                 else:
                     self.edge_hits_in_row = 0
 
-                if self.edge_hits_in_row >= self.edge_consecutive_frames:
                 if edge_stop_armed and self.edge_hits_in_row >= self.edge_consecutive_frames:
                     self.edge_latched = True
 
