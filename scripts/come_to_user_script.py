@@ -645,7 +645,7 @@ class PersonFollowerWebServer(Node):
                     f"support={stats['support_fraction']:.2f} "
                     f"span={stats['x_span_fraction']:.2f} "
                     f"corridor={stats['corridor_support_fraction']:.2f} "
-                    f"y_max_corridor={stats['max_curve_y_corridor']:.0f}"
+                    f"y_median_corridor={stats['median_curve_y_corridor']:.0f}"
                 )
 
         except Exception as exc:
@@ -666,7 +666,7 @@ class PersonFollowerWebServer(Node):
             "support_fraction": 0.0,
             "x_span_fraction": 0.0,
             "corridor_support_fraction": 0.0,
-            "max_curve_y_corridor": -1.0,
+            "median_curve_y_corridor": -1.0,
         }
 
         if roi.size == 0:
@@ -806,21 +806,21 @@ class PersonFollowerWebServer(Node):
             curve_pts_np = np.array(curve_pts, dtype=np.int32).reshape((-1, 1, 2))
             cv2.polylines(debug_bgr, [curve_pts_np], False, (255, 0, 255), 2)
 
-        max_curve_y_corridor = max(corridor_curve_y) if corridor_curve_y else -1
-        stats["max_curve_y_corridor"] = float(max_curve_y_corridor)
+        median_curve_y_corridor = float(np.median(corridor_curve_y)) if corridor_curve_y else -1.0
+        stats["median_curve_y_corridor"] = median_curve_y_corridor
 
         detected = (
             support_fraction >= self.edge_min_support_fraction
             and x_span_fraction >= self.edge_min_span_fraction
             and corridor_support_fraction >= self.edge_min_corridor_support_fraction
-            and max_curve_y_corridor >= stop_y
+            and 0 <= median_curve_y_corridor <= stop_y
         )
 
         text1 = (
             f"support={support_fraction:.2f} span={x_span_fraction:.2f} "
             f"corridor={corridor_support_fraction:.2f}"
         )
-        text2 = f"y_max_corridor={max_curve_y_corridor:.0f} stop_y={stop_y}"
+        text2 = f"y_median_corridor={median_curve_y_corridor:.0f} stop_y={stop_y}"
         cv2.putText(
             debug_bgr,
             text1,
@@ -1246,7 +1246,7 @@ def main() -> None:
     parser.add_argument(
         "--edge-consecutive-frames",
         type=int,
-        default=30,
+        default=20,
         help="Number of consecutive edge detections required to latch stop; 20 frames is about 2 seconds at 10 FPS.",
     )
     parser.add_argument(
@@ -1300,8 +1300,8 @@ def main() -> None:
     parser.add_argument(
         "--edge-stop-y-fraction",
         type=float,
-        default=0.68,
-        help="Stop once the fitted boundary reaches this height fraction in the forward corridor.",
+        default=0.40,
+        help="Stop once the fitted boundary is above this image-height fraction in the forward corridor; smaller values are closer to the top.",
     )
 
     args = parser.parse_args()
